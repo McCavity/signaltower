@@ -91,6 +91,14 @@ The install script:
 3. Creates a virtualenv at `/opt/signaltower` and installs the package
 4. Installs and enables the `signaltower.service` systemd unit
 
+## Upgrading
+
+After pulling new code, run from the project root:
+
+```sh
+sudo ./deploy/upgrade.sh
+```
+
 ## Development
 
 ```sh
