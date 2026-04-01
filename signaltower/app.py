@@ -6,17 +6,22 @@ from typing import Literal
 
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.security import APIKeyHeader
+from fastapi.security import APIKeyHeader, APIKeyQuery
 from pydantic import BaseModel, field_validator
 
 from signaltower import state, watchdog
 
-_api_key_header = APIKeyHeader(name="X-API-Key")
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+_api_key_query = APIKeyQuery(name="key", auto_error=False)
 
 
-def _require_api_key(key: str = Depends(_api_key_header)):
+def _require_api_key(
+    header_key: str | None = Depends(_api_key_header),
+    query_key: str | None = Depends(_api_key_query),
+):
     expected = os.environ.get("SIGNALTOWER_API_KEY", "")
-    if not expected or not secrets.compare_digest(key, expected):
+    key = header_key or query_key
+    if not expected or not key or not secrets.compare_digest(key, expected):
         raise HTTPException(status_code=403, detail="Invalid or missing API key")
 
 
