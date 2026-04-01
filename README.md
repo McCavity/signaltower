@@ -41,22 +41,27 @@ Returns the last 100 signal requests as a JSON array.
 
 ### `POST /signal`
 
-Switches a lamp on or off.
+Sets a lamp state. Only `BLUE` and `WHITE` are available for manual control; `RED`, `AMBER`, and `GREEN` are managed exclusively by the watchdog.
 
 **Request body**
 ```json
 {
-  "colour": "RED",
-  "mode": "on",
-  "interval": 0
+  "colour": "BLUE",
+  "mode": "slow_blink",
+  "duration": 30
 }
 ```
 
 | Field | Type | Values |
 |-------|------|--------|
-| `colour` | string | `BLUE`, `WHITE`, `AMBER`, `RED`, `GREEN` |
-| `mode` | string | `on`, `off`, `blink`, `once` |
-| `interval` | integer | milliseconds; used only with `once` mode |
+| `colour` | string | `BLUE`, `WHITE` |
+| `mode` | string | `off`, `on`, `slow_blink`, `fast_blink` |
+| `duration` | integer | seconds until auto-revert to `off`; `-1` or omitted = indefinite |
+
+- `slow_blink`: 1 second cycle (0.5s on, 0.5s off)
+- `fast_blink`: 0.5 second cycle (0.25s on, 0.25s off)
+- A new request always replaces the current state, including cancelling any active timer
+- `duration: 0` is rejected with `422`
 
 **Response**: `204 No Content`
 

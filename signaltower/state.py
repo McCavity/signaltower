@@ -1,32 +1,39 @@
 import threading
 from collections import deque
+from dataclasses import dataclass
 from datetime import datetime
 
 _lock = threading.Lock()
 
-_towerstate: int = 0
+
+@dataclass
+class LampState:
+    mode: str = 'off'
+    expires_at: datetime | None = None
+
+
+_lamp_states: dict[str, LampState] = {
+    colour: LampState() for colour in ('BLUE', 'WHITE', 'AMBER', 'RED', 'GREEN')
+}
+
 _last_seen: datetime = datetime.fromtimestamp(0)
-_last_started: datetime = datetime.now()
 _request_log: deque = deque(maxlen=100)
 
-_request_log.append({
-    "timestamp": _last_started,
-    "remote_addr": "127.0.0.1",
-    "endpoint": None,
-    "colour": "GREEN",
-    "mode": "on",
-})
 
-
-def get_towerstate() -> int:
+def set_lamp(colour: str, mode: str, expires_at: datetime | None):
     with _lock:
-        return _towerstate
+        _lamp_states[colour] = LampState(mode=mode, expires_at=expires_at)
 
 
-def set_towerstate(val: int):
-    global _towerstate
+def get_effective_lamp(colour: str) -> str:
+    """Returns current mode, atomically expiring the lamp if its timer has elapsed."""
+    now = datetime.now()
     with _lock:
-        _towerstate = val
+        s = _lamp_states[colour]
+        if s.expires_at is not None and now >= s.expires_at:
+            _lamp_states[colour] = LampState()
+            return 'off'
+        return s.mode
 
 
 def get_last_seen() -> datetime:

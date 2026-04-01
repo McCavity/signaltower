@@ -1,55 +1,25 @@
 from contextlib import asynccontextmanager
-from datetime import datetime
-from time import sleep
+from datetime import datetime, timedelta
 from typing import Literal
 
 import uvicorn
 from fastapi import FastAPI, Request, Response
 from pydantic import BaseModel, field_validator
 
-from signaltower import hardware, state, watchdog
-
-COLOURS = {"BLUE": 1, "WHITE": 2, "AMBER": 4, "RED": 8, "GREEN": 16}
-
-
-def _apply(bitmask: int):
-    state.set_towerstate(bitmask)
-    try:
-        hardware.device.set_outputs(bitmask)
-    except hardware.K8055NotFoundError:
-        pass
-
-
-def switch(colour: str, mode: str, interval: int):
-    bit = COLOURS[colour]
-    current = state.get_towerstate()
-    if mode == "on":
-        if not current & bit:
-            _apply(current ^ bit)
-    elif mode == "off":
-        if current & bit:
-            _apply(current ^ bit)
-    elif mode == "blink":
-        pass
-    elif mode == "once":
-        if not current & bit:
-            _apply(current ^ bit)
-            sleep(interval / 1000)
-            _apply(state.get_towerstate() ^ bit)
+from signaltower import state, watchdog
 
 
 class SignalRequest(BaseModel):
-    colour: Literal["BLUE", "WHITE", "AMBER", "RED", "GREEN"]
-    mode: str
-    interval: int = 0
+    colour: Literal["BLUE", "WHITE"]
+    mode: Literal["off", "on", "slow_blink", "fast_blink"]
+    duration: int | None = None
 
-    @field_validator("mode")
+    @field_validator("duration")
     @classmethod
-    def validate_mode(cls, v: str) -> str:
-        normalised = v.lower()
-        if normalised not in ("on", "off", "blink", "once"):
-            raise ValueError(f"mode must be one of on/off/blink/once, got '{v}'")
-        return normalised
+    def validate_duration(cls, v: int | None) -> int | None:
+        if v == 0:
+            raise ValueError("duration must be > 0 or -1 (indefinite), not 0")
+        return v
 
 
 @asynccontextmanager
@@ -74,16 +44,20 @@ def get_signals():
 
 @app.post("/signal", status_code=204)
 def switch_signal(body: SignalRequest, request: Request):
-    entry = {
+    if body.duration is not None and body.duration > 0:
+        expires_at = datetime.now() + timedelta(seconds=body.duration)
+    else:
+        expires_at = None
+
+    state.append_request({
         "timestamp": datetime.now(),
         "remote_addr": request.client.host,
         "endpoint": "/signal",
         "colour": body.colour,
         "mode": body.mode,
-        "interval": body.interval,
-    }
-    state.append_request(entry)
-    switch(body.colour, body.mode, body.interval)
+        "duration": body.duration,
+    })
+    state.set_lamp(body.colour, body.mode, expires_at)
     return Response(status_code=204)
 
 
