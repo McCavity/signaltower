@@ -1,0 +1,4 @@
+SUBSYSTEM=="usb", ATTRS{idVendor}=="10cf", ATTRS{idProduct}=="5500", MODE="0660", GROUP="k8055"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="10cf", ATTRS{idProduct}=="5501", MODE="0660", GROUP="k8055"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="10cf", ATTRS{idProduct}=="5502", MODE="0660", GROUP="k8055"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="10cf", ATTRS{idProduct}=="5503", MODE="0660", GROUP="k8055"

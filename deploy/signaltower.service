@@ -1,0 +1,14 @@
+[Unit]
+Description=Signaltower API Service
+After=network.target
+
+[Service]
+Type=simple
+User=signaltower
+Group=k8055
+ExecStart=/opt/signaltower/bin/signaltower
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
