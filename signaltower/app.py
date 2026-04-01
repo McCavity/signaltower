@@ -1,12 +1,23 @@
+import os
+import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Literal
 
 import uvicorn
-from fastapi import FastAPI, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, field_validator
 
 from signaltower import state, watchdog
+
+_api_key_header = APIKeyHeader(name="X-API-Key")
+
+
+def _require_api_key(key: str = Depends(_api_key_header)):
+    expected = os.environ.get("SIGNALTOWER_API_KEY", "")
+    if not expected or not secrets.compare_digest(key, expected):
+        raise HTTPException(status_code=403, detail="Invalid or missing API key")
 
 
 class SignalRequest(BaseModel):
@@ -31,18 +42,18 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-@app.get("/heartbeat")
+@app.get("/heartbeat", dependencies=[Depends(_require_api_key)])
 def heartbeat():
     state.set_last_seen()
     return {"status": "ok"}
 
 
-@app.get("/signal")
+@app.get("/signal", dependencies=[Depends(_require_api_key)])
 def get_signals():
     return state.get_requests()
 
 
-@app.post("/signal", status_code=204)
+@app.post("/signal", status_code=204, dependencies=[Depends(_require_api_key)])
 def switch_signal(body: SignalRequest, request: Request):
     if body.duration is not None and body.duration > 0:
         expires_at = datetime.now() + timedelta(seconds=body.duration)

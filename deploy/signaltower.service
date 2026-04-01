@@ -6,6 +6,7 @@ After=network.target
 Type=simple
 User=signaltower
 Group=k8055
+EnvironmentFile=/etc/signaltower/env
 ExecStart=/opt/signaltower/bin/signaltower
 Restart=on-failure
 RestartSec=5

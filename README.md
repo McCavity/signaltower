@@ -77,6 +77,22 @@ The watchdog runs every 10 seconds and overrides the RED/AMBER/GREEN outputs:
 
 BLUE and WHITE outputs are not touched by the watchdog.
 
+## Authentication
+
+All endpoints require an `X-API-Key` header. The key is generated during installation and stored in `/etc/signaltower/env`. To retrieve it:
+
+```sh
+sudo cat /etc/signaltower/env
+```
+
+Include it in every request:
+
+```sh
+curl -H "X-API-Key: <your-key>" http://172.16.47.242:5000/heartbeat
+```
+
+The key file is preserved across upgrades. To rotate the key, replace it in `/etc/signaltower/env` and restart the service.
+
 ## Installation
 
 Run from the project root directory:
