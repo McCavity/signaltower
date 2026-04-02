@@ -23,20 +23,30 @@ Resets the watchdog timer. Call this regularly from your monitored system to kee
 
 ### `GET /signal`
 
-Returns the last 100 signal requests as a JSON array.
+Returns the last 100 signal requests as a JSON array. Both successful requests and failed validation attempts are logged.
 
-**Response**
+**Successful request entry**
 ```json
-[
-  {
-    "timestamp": "2024-01-01T12:00:00",
-    "remote_addr": "192.168.1.10",
-    "endpoint": "/signal",
-    "colour": "RED",
-    "mode": "on",
-    "interval": 0
-  }
-]
+{
+  "timestamp": "2024-01-01T12:00:00",
+  "remote_addr": "192.168.1.10",
+  "endpoint": "/signal",
+  "colour": "WHITE",
+  "mode": "slow_blink",
+  "duration": 30
+}
+```
+
+**Failed validation entry**
+```json
+{
+  "timestamp": "2024-01-01T12:00:00",
+  "remote_addr": "192.168.1.10",
+  "endpoint": "/signal",
+  "error": "validation_error",
+  "validation_errors": [...],
+  "payload": {"colour": "WHITE", "mode": "on"}
+}
 ```
 
 ### `POST /signal`
@@ -65,9 +75,27 @@ Sets a lamp state. Only `BLUE` and `WHITE` are available for manual control; `RE
 
 **Response**: `204 No Content`
 
+### `GET /lamps`
+
+Returns the current effective mode for all five lamps. AMBER/RED/GREEN states are derived from heartbeat elapsed time (same logic as the watchdog); BLUE/WHITE reflect the last `POST /signal` request.
+
+**Response**
+```json
+{"BLUE": "off", "WHITE": "slow_blink", "AMBER": "off", "RED": "off", "GREEN": "on"}
+```
+
+### `GET /ui`
+
+Serves a browser status page showing an SVG signal tower in its current state. BLUE and WHITE have mode/duration controls. AMBER, RED, and GREEN are read-only (watchdog-managed). The page polls `GET /lamps` every 2 seconds.
+
+Open in a browser:
+```
+http://<pi-address>:5000/ui?key=<your-key>
+```
+
 ### Watchdog behaviour
 
-The watchdog runs every 10 seconds and overrides the RED/AMBER/GREEN outputs:
+The watchdog loops continuously (0.1 s tick) and overrides the RED/AMBER/GREEN outputs:
 
 | Time since last heartbeat | Tower state |
 |--------------------------|-------------|
@@ -79,16 +107,20 @@ BLUE and WHITE outputs are not touched by the watchdog.
 
 ## Authentication
 
-All endpoints require an `X-API-Key` header. The key is generated during installation and stored in `/etc/signaltower/env`. To retrieve it:
+All endpoints require authentication. The key is generated during installation and stored in `/etc/signaltower/env`. To retrieve it:
 
 ```sh
 sudo cat /etc/signaltower/env
 ```
 
-Include it in every request:
+Pass the key either as a header or as a query parameter:
 
 ```sh
-curl -H "X-API-Key: <your-key>" http://172.16.47.242:5000/heartbeat
+# header
+curl -H "X-API-Key: <your-key>" http://<pi-address>:5000/heartbeat
+
+# query parameter (useful for browser URLs and tools without header support)
+curl http://<pi-address>:5000/heartbeat?key=<your-key>
 ```
 
 The key file is preserved across upgrades. To rotate the key, replace it in `/etc/signaltower/env` and restart the service.

@@ -18,6 +18,7 @@ deploy/
   signaltower.service  — systemd unit
   99-k8055.rules       — udev permissions for K8055
   install.sh           — production install script
+  upgrade.sh           — reinstall package and restart service
 ```
 
 ## Running locally
@@ -41,7 +42,7 @@ Uses `uv`. Edit `pyproject.toml`, then run `uv sync`.
 
 ## Thread safety
 
-All shared state lives in `state.py` behind a single `threading.Lock`. The watchdog thread and FastAPI request handlers both call `state.*` functions — never touch the underlying `_towerstate` or `_last_seen` variables directly.
+All shared state lives in `state.py` behind a single `threading.Lock`. The watchdog thread and FastAPI request handlers both call `state.*` functions — never touch the underlying `_lamp_states` or `_last_seen` variables directly.
 
 ## Hardware absence
 
