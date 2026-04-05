@@ -47,3 +47,19 @@ All shared state lives in `state.py` behind a single `threading.Lock`. The watch
 ## Hardware absence
 
 `hardware.K8055` connects lazily (on first `set_outputs` call). `K8055NotFoundError` is caught in both `app.py` and `watchdog.py` and silently swallowed, so the app runs normally on a dev machine without a device attached.
+
+## Organisation Context
+
+This repository is part of Henning Halfpap's personal GitHub collection, located at
+`/Users/hhalfpap/git/projects/own` on the development machine.
+
+- **Org index**: `/Users/hhalfpap/git/projects/own/org-index.json` — machine-readable
+  metadata for all repos (last commit, CLAUDE.md presence, file count, etc.)
+- **Org instructions**: `/Users/hhalfpap/git/projects/own/CLAUDE.md` — guidance for
+  cross-repo maintenance tasks (checking sync status, stale repos, etc.)
+
+For project-specific work, operate within this directory. For questions spanning
+multiple repos, consult the org index first.
+
+**Tooling rule**: Skills, plugins, and MCP servers are always installed at project level
+(`.claude/settings.json` in this directory), never at user/global level.
