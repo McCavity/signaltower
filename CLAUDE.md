@@ -52,6 +52,28 @@ curl http://172.16.47.242:5000/lamps?key=<api-key>
 
 Expect a JSON with all 5 lamp states.
 
+## Local environment
+
+API key for outgoing tests from this Mac lives in a gitignored `.env` next to
+this CLAUDE.md, mirrored to 1Password as a Secure Note. Template:
+
+```sh
+cp .env.example .env
+chmod 600 .env
+# Paste the production key (sudo cat /etc/signaltower/env on rbhapp01)
+```
+
+Loading the key into a shell session:
+
+```sh
+set -a; source .env; set +a
+echo $SIGNALTOWER_API_KEY   # should be non-empty
+```
+
+The development server also reads `SIGNALTOWER_API_KEY` from the environment, so
+the same `.env` works for `uv run signaltower` against the prod key during local
+testing.
+
 ## Package management
 
 Uses `uv`. Edit `pyproject.toml`, then run `uv sync`.

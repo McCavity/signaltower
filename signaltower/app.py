@@ -16,37 +16,59 @@ from signaltower import state, watchdog
 
 _UI_HTML = """\
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Signal Tower</title>
+<title>Signaltower</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+:root{
+  --tiefsee:#152C45;--tiefwasser:#1B3A5C;--kartenpapier:#F5F0E8;--vergilbt:#D8D0BC;
+  --flachwasser:#7FB5B0;--kuestenblau:#3A7CA5;--kompassrose:#B8860B;--gefahrenmark:#C0392B;
+  --rule:rgba(245,240,232,.18);--rule-strong:rgba(245,240,232,.42);
+  --font-display:'Fraunces','Libre Caslon Text',ui-serif,Georgia,serif;
+  --font-body:'Inter',-apple-system,system-ui,'Segoe UI',sans-serif;
+  --font-mono:'JetBrains Mono','SFMono-Regular',Menlo,Consolas,monospace;
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#0d1117;color:#c9d1d9;min-height:100vh;display:flex;align-items:center;justify-content:center}
-.page{padding:2rem}
-h1{font-size:1.3rem;color:#f0f6fc;margin-bottom:2rem;letter-spacing:.06em;text-transform:uppercase}
-.layout{display:flex;gap:3rem;align-items:flex-start}
-.panel{display:flex;flex-direction:column;gap:.55rem}
-.lamp-row{display:flex;align-items:center;gap:.75rem;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:.6rem 1rem;min-width:360px}
-.dot{width:14px;height:14px;border-radius:50%;flex-shrink:0}
-.lamp-name{font-size:.85rem;font-weight:600;width:54px;letter-spacing:.04em}
-select,input[type=number]{background:#0d1117;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:4px 8px;font-size:.85rem}
-input[type=number]{width:76px}
-button{background:#238636;color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:.85rem;cursor:pointer;transition:background .15s}
-button:hover{background:#2ea043}
-.status-badge{font-size:.78rem;color:#8b949e;font-style:italic;margin-left:auto}
-.dur-label{font-size:.78rem;color:#6e7681}
+body{font-family:var(--font-body);background:var(--tiefsee);color:var(--vergilbt);min-height:100vh;display:flex;align-items:center;justify-content:center;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.page{padding:32px 48px;max-width:920px;width:100%}
+.kicker{font-family:var(--font-body);font-weight:500;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--flachwasser);margin-bottom:8px}
+h1{font-family:var(--font-display);font-style:italic;font-weight:400;font-size:32px;line-height:1.15;letter-spacing:-.005em;color:var(--kartenpapier);margin:0 0 32px}
+.layout{display:flex;gap:48px;align-items:flex-start}
+.panel{display:flex;flex-direction:column;gap:6px;flex:1;min-width:380px}
+.lamp-row{display:flex;align-items:center;gap:12px;background:var(--tiefwasser);border:1px solid var(--rule);border-radius:4px;padding:10px 16px}
+.dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;box-shadow:inset 0 0 0 1px var(--rule)}
+.lamp-name{font-family:var(--font-mono);font-weight:500;font-size:12px;width:64px;letter-spacing:.04em}
+select,input[type=number]{font-family:var(--font-body);background:var(--tiefsee);color:var(--vergilbt);border:1px solid var(--rule);border-radius:4px;padding:5px 8px;font-size:13px}
+select:focus,input[type=number]:focus{outline:none;border-color:var(--flachwasser)}
+input[type=number]{width:80px;font-family:var(--font-mono);font-feature-settings:'tnum' 1}
+.dur-label{font-family:var(--font-mono);font-size:11px;color:var(--flachwasser);letter-spacing:.05em}
+.status-badge{font-family:var(--font-mono);font-size:11px;color:var(--flachwasser);margin-left:auto;letter-spacing:.04em}
+.row-pad{display:flex;align-items:center;gap:10px;margin-left:auto}
+.actions{margin-top:18px;display:flex;justify-content:flex-end}
+button.set-all{font-family:var(--font-body);font-weight:600;font-size:13px;letter-spacing:.04em;background:var(--kompassrose);color:var(--tiefsee);border:none;border-radius:4px;padding:10px 22px;cursor:pointer;transition:background var(--dur-fast,120ms) ease,transform var(--dur-fast,120ms) ease;text-transform:uppercase;box-shadow:0 1px 0 rgba(0,0,0,.18)}
+button.set-all:hover{background:#d4a017}
+button.set-all:active{transform:translateY(1px)}
+button.set-all:disabled{opacity:.5;cursor:wait}
+.tower-wrap{padding:16px 16px 12px;background:var(--tiefwasser);border:1px solid var(--rule);border-radius:4px}
+.caption{font-family:var(--font-mono);font-size:10.5px;color:var(--flachwasser);text-align:center;letter-spacing:.05em;margin-top:8px}
 @keyframes slow-blink{0%,100%{opacity:1}50%{opacity:.08}}
 @keyframes fast-blink{0%,100%{opacity:1}50%{opacity:.08}}
 .slow-blink{animation:slow-blink 1.8s ease-in-out infinite}
 .fast-blink{animation:fast-blink .45s ease-in-out infinite}
+::selection{background:var(--kompassrose);color:var(--kartenpapier)}
 </style>
 </head>
 <body>
 <div class="page">
-<h1>&#9650; Signal Tower</h1>
+<div class="kicker">Status · Steuerung</div>
+<h1>Signaltower</h1>
 <div class="layout">
+  <div class="tower-wrap">
   <svg width="100" height="340" viewBox="0 0 100 340" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="gBLUE_on"  x1="0" y1="0" x2="1" y2="0"><stop offset="0%"   stop-color="#82b4ff"/><stop offset="40%" stop-color="#2979ff"/><stop offset="100%" stop-color="#1a55cc"/></linearGradient>
@@ -73,8 +95,15 @@ button:hover{background:#2ea043}
     <rect x="26" y="304" width="48" height="14" rx="3" fill="#1e1e1e"/>
     <rect x="14" y="316" width="72" height="20" rx="5" fill="#252525"/>
   </svg>
+  <div class="caption">K8055 · rbhapp01</div>
+  </div>
 
-  <div class="panel" id="panel"></div>
+  <div style="flex:1">
+    <div class="panel" id="panel"></div>
+    <div class="actions">
+      <button id="set-all" class="set-all">Lampen setzen</button>
+    </div>
+  </div>
 </div>
 </div>
 
@@ -100,19 +129,18 @@ LAMPS.forEach(c => {
   row.append(dot, name);
 
   if (CTRL.includes(c)) {
+    const pad = Object.assign(document.createElement("div"), {className:"row-pad"});
+
     const sel = document.createElement("select");
     sel.id = "mode-"+c;
     MODES.forEach(m => sel.append(Object.assign(document.createElement("option"), {value:m, textContent:m.replace(/_/g," ")})));
 
-    const lbl = Object.assign(document.createElement("span"), {className:"dur-label", textContent:"s:"});
+    const lbl = Object.assign(document.createElement("span"), {className:"dur-label", textContent:"s"});
 
     const dur = Object.assign(document.createElement("input"), {type:"number", id:"dur-"+c, value:-1, min:-1, title:"Duration in seconds (−1 = indefinite)"});
-    dur.style.width = "76px";
 
-    const btn = Object.assign(document.createElement("button"), {textContent:"Set"});
-    btn.onclick = () => sendSignal(c);
-
-    row.append(sel, lbl, dur, btn);
+    pad.append(sel, lbl, dur);
+    row.appendChild(pad);
   } else {
     const badge = Object.assign(document.createElement("span"), {id:"status-"+c, className:"status-badge", textContent:"off"});
     row.appendChild(badge);
@@ -145,13 +173,25 @@ async function pollState() {
 async function sendSignal(colour) {
   const mode = document.getElementById("mode-"+colour).value;
   const raw  = parseInt(document.getElementById("dur-"+colour).value, 10);
-  await fetch("/signal?key="+KEY, {
+  return fetch("/signal?key="+KEY, {
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({colour, mode, duration: isNaN(raw)?-1:raw})
   });
-  pollState();
 }
+
+async function submitAll() {
+  const btn = document.getElementById("set-all");
+  btn.disabled = true;
+  try {
+    await Promise.all(CTRL.map(sendSignal));
+    await pollState();
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.getElementById("set-all").addEventListener("click", submitAll);
 
 pollState();
 setInterval(pollState, 2000);

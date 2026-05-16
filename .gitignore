@@ -8,3 +8,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Local secrets (paired with .env.example, also backed up in 1Password)
+.env
