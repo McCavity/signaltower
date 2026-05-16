@@ -28,6 +28,30 @@ uv sync
 uv run signaltower
 ```
 
+## Deployment
+
+Runs on `rbhapp01` (172.16.47.242), repo at `~/git/projects/own/signaltower` on
+the same path on the Pi. Update sequence (from Pi shell or via SSH):
+
+```sh
+cd ~/git/projects/own/signaltower
+git pull
+sudo ./deploy/upgrade.sh
+```
+
+The `upgrade.sh` script reinstalls the package into the systemd-managed
+virtualenv at `/opt/signaltower` and restarts the `signaltower.service`. The API
+listens on `:5000`; the API key is in `/etc/signaltower/env` (preserved across
+upgrades).
+
+Health check after deploy:
+
+```sh
+curl http://172.16.47.242:5000/lamps?key=<api-key>
+```
+
+Expect a JSON with all 5 lamp states.
+
 ## Package management
 
 Uses `uv`. Edit `pyproject.toml`, then run `uv sync`.
