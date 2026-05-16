@@ -51,7 +51,7 @@ Returns the last 100 signal requests as a JSON array. Both successful requests a
 
 ### `POST /signal`
 
-Sets a lamp state. Only `BLUE` and `WHITE` are available for manual control; `RED`, `AMBER`, and `GREEN` are managed exclusively by the watchdog.
+Sets a lamp state. `BLUE`, `WHITE`, and `AMBER` are available for manual control; `RED` and `GREEN` are managed exclusively by the watchdog. AMBER is conventionally used to signal "unacknowledged alarms present" — set `on` from your alarm-management system when alarms appear, and back to `off` once they are acknowledged.
 
 **Request body**
 ```json
@@ -64,7 +64,7 @@ Sets a lamp state. Only `BLUE` and `WHITE` are available for manual control; `RE
 
 | Field | Type | Values |
 |-------|------|--------|
-| `colour` | string | `BLUE`, `WHITE` |
+| `colour` | string | `BLUE`, `WHITE`, `AMBER` |
 | `mode` | string | `off`, `on`, `slow_blink`, `fast_blink` |
 | `duration` | integer | seconds until auto-revert to `off`; `-1` or omitted = indefinite |
 
@@ -77,7 +77,7 @@ Sets a lamp state. Only `BLUE` and `WHITE` are available for manual control; `RE
 
 ### `GET /lamps`
 
-Returns the current effective mode for all five lamps. AMBER/RED/GREEN states are derived from heartbeat elapsed time (same logic as the watchdog); BLUE/WHITE reflect the last `POST /signal` request.
+Returns the current effective mode for all five lamps. RED/GREEN states are derived from heartbeat elapsed time (same logic as the watchdog); BLUE/WHITE/AMBER reflect the last `POST /signal` request.
 
 **Response**
 ```json
@@ -86,7 +86,7 @@ Returns the current effective mode for all five lamps. AMBER/RED/GREEN states ar
 
 ### `GET /ui`
 
-Serves a browser status page showing an SVG signal tower in its current state. BLUE and WHITE have mode/duration controls. AMBER, RED, and GREEN are read-only (watchdog-managed). The page polls `GET /lamps` every 2 seconds.
+Serves a browser status page showing an SVG signal tower in its current state. BLUE, WHITE, and AMBER have mode/duration controls. RED and GREEN are read-only (watchdog-managed). The page polls `GET /lamps` every 2 seconds.
 
 Open in a browser:
 ```
@@ -95,15 +95,14 @@ http://<pi-address>:5000/ui?key=<your-key>
 
 ### Watchdog behaviour
 
-The watchdog loops continuously (0.1 s tick) and overrides the RED/AMBER/GREEN outputs:
+The watchdog loops continuously (0.1 s tick) and overrides the GREEN and RED outputs:
 
 | Time since last heartbeat | Tower state |
 |--------------------------|-------------|
-| < 60 seconds | GREEN on, AMBER+RED off |
-| 60–300 seconds | AMBER on, GREEN+RED off |
-| > 300 seconds | RED on, GREEN+AMBER off |
+| < 120 seconds | GREEN on, RED off |
+| ≥ 120 seconds | RED on, GREEN off |
 
-BLUE and WHITE outputs are not touched by the watchdog.
+BLUE, WHITE, and AMBER outputs are not touched by the watchdog — they are controlled exclusively via `POST /signal`. A 0.5 s debounce smooths brief threshold crossings to prevent visible flicker.
 
 ## Authentication
 

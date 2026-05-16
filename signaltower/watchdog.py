@@ -5,7 +5,12 @@ from datetime import datetime
 from signaltower import hardware, state
 
 COLOURS = {'BLUE': 1, 'WHITE': 2, 'AMBER': 4, 'RED': 8, 'GREEN': 16}
-MANUAL_LAMPS = ('BLUE', 'WHITE')
+MANUAL_LAMPS = ('BLUE', 'WHITE', 'AMBER')
+
+# Heartbeat freshness threshold. Below: GREEN; at or above: RED.
+# 120 s tolerates ~2 missed minute-ticks from the upstream heartbeat script
+# (e.g. ioBroker timer jitter) before signalling outage.
+_HEARTBEAT_TIMEOUT_S = 120
 
 # Half-periods in seconds for each blink mode
 BLINK_HALF_PERIOD = {
@@ -13,11 +18,10 @@ BLINK_HALF_PERIOD = {
     'fast_blink': 0.25,
 }
 
-# A zone change (GREEN→AMBER→RED or back) must be seen for this many
-# consecutive ticks before it is committed to hardware.  At 0.1 s per tick,
-# 5 ticks = 0.5 s of stability required.  This prevents brief threshold
-# crossings (e.g. a heartbeat that is a fraction of a second late) from
-# causing a visible flicker.
+# A zone change (GREEN ↔ RED) must be seen for this many consecutive ticks
+# before it is committed to hardware. At 0.1 s per tick, 5 ticks = 0.5 s
+# of stability required. Prevents brief threshold crossings from causing
+# visible flicker.
 _ZONE_DEBOUNCE_TICKS = 5
 
 
@@ -27,11 +31,7 @@ def _blink_on(mode: str) -> bool:
 
 
 def _current_zone(elapsed: float) -> str:
-    if elapsed > 300:
-        return 'RED'
-    if elapsed > 60:
-        return 'AMBER'
-    return 'GREEN'
+    return 'RED' if elapsed >= _HEARTBEAT_TIMEOUT_S else 'GREEN'
 
 
 def _loop():

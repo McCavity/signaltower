@@ -81,7 +81,7 @@ button:hover{background:#2ea043}
 <script>
 const KEY   = "__API_KEY__";
 const LAMPS = ["BLUE","WHITE","AMBER","RED","GREEN"];
-const CTRL  = ["BLUE","WHITE"];
+const CTRL  = ["BLUE","WHITE","AMBER"];
 const MODES = ["off","on","slow_blink","fast_blink"];
 const ACTIVE= {BLUE:"#2979ff",WHITE:"#e0e0e0",AMBER:"#ffab00",RED:"#f44336",GREEN:"#00e676"};
 const DIM   = {BLUE:"#1a1d2e",WHITE:"#2a2a2a",AMBER:"#2a1e0a",RED:"#2a1010",GREEN:"#0d2010"};
@@ -175,7 +175,7 @@ def _require_api_key(
 
 
 class SignalRequest(BaseModel):
-    colour: Literal["BLUE", "WHITE"]
+    colour: Literal["BLUE", "WHITE", "AMBER"]
     mode: Literal["off", "on", "slow_blink", "fast_blink"]
     duration: int | None = None
 

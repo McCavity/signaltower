@@ -54,11 +54,12 @@ def append_request(entry: dict):
 
 def get_all_lamps() -> dict:
     """Returns current effective mode for every lamp, expiring elapsed timers.
-    AMBER/RED/GREEN are derived from heartbeat elapsed time, mirroring the watchdog."""
+    BLUE/WHITE/AMBER are manual; GREEN/RED are derived from heartbeat elapsed
+    time (120 s threshold), mirroring the watchdog."""
     now = datetime.now()
     with _lock:
         result = {}
-        for colour in ("BLUE", "WHITE"):
+        for colour in ("BLUE", "WHITE", "AMBER"):
             s = _lamp_states[colour]
             if s.expires_at is not None and now >= s.expires_at:
                 _lamp_states[colour] = LampState()
@@ -66,9 +67,8 @@ def get_all_lamps() -> dict:
             else:
                 result[colour] = s.mode
         elapsed = (now - _last_seen).total_seconds()
-        result["GREEN"] = "on" if elapsed <= 60 else "off"
-        result["AMBER"] = "on" if 60 < elapsed <= 300 else "off"
-        result["RED"]   = "on" if elapsed > 300 else "off"
+        result["GREEN"] = "on" if elapsed < 120 else "off"
+        result["RED"]   = "on" if elapsed >= 120 else "off"
     return result
 
 
