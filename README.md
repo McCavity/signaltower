@@ -10,6 +10,16 @@ A background watchdog thread monitors heartbeat requests and sets the tower colo
 - Velleman K8055 USB experiment interface board
 - Signal tower with BLUE, WHITE, AMBER, RED, and GREEN lamps wired to K8055 digital outputs
 
+> [!WARNING]
+> **Known hardware issue (2026-05-16):** The AMBER lamp on the production tower
+> at rbhapp01 has an intermittent connection. Software-side AMBER works (verified
+> via `POST /signal {"colour":"AMBER","mode":"on"}` and `GET /lamps`), but the
+> physical lamp sometimes fails to light. Suspected loose cable / cold solder
+> joint / unseated header on the K8055-OUT3 path. Until repaired, do not rely on
+> AMBER alone for visual alarm signalling — the alarm-button system
+> ([04-projects/alarm-button](../ki-os/04-projects/alarm-button/) in the KI-OS
+> vault) provides a redundant signal path.
+
 ## API reference
 
 ### `GET /heartbeat`
