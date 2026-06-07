@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.security import APIKeyHeader, APIKeyQuery
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from signaltower import state, watchdog
 
@@ -217,7 +217,15 @@ def _require_api_key(
 class SignalRequest(BaseModel):
     colour: Literal["BLUE", "WHITE", "AMBER"]
     mode: Literal["off", "on", "slow_blink", "fast_blink"]
-    duration: int | None = None
+    duration: int | None = Field(
+        default=None,
+        description=(
+            "Anzeigedauer in Sekunden. > 0 = erlischt nach n Sekunden; "
+            "-1 = dauerhaft an, bis das nächste Signal kommt; "
+            "null bzw. weggelassen = dauerhaft (Default). 0 ist ungültig."
+        ),
+        examples=[3, -1],
+    )
 
     @field_validator("duration")
     @classmethod
