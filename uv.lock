@@ -310,7 +310,7 @@ wheels = [
 ]
 
 [[package]]
-name = "signaltower-flask-project"
+name = "signaltower"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
