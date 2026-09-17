@@ -7,18 +7,92 @@ A background watchdog thread monitors heartbeat requests and sets the tower colo
 ## Hardware requirements
 
 - Raspberry Pi (any model with USB)
-- Velleman K8055 USB experiment interface board
-- Signal tower with BLUE, WHITE, AMBER, RED, and GREEN lamps wired to K8055 digital outputs
+- Velleman K8055 / VM110N USB experiment interface board
+- A driver stage between the board and the lamps (see below) — the K8055 outputs
+  alone cannot power signal tower lamps
+- Signal tower with BLUE, WHITE, AMBER, RED, and GREEN lamps
+
+## Signal tower wiring
+
+This section documents the production tower. Getting it wrong is easy: three
+different channel mappings exist for this setup, and only one of them is real.
+
+### Supply voltage: 12 V DC
+
+The tower runs on **12 V DC** from an external power supply. The K8055/VM110N is
+powered separately over USB; the two supplies are galvanically isolated by the
+driver stage.
+
+### Driver stage
+
+The lamps are **not** driven by the K8055 directly. Between board and tower sits
+an **OCC2904 "Octo Channel Control"** — a galvanic converter built for the
+VM110N (by Jens Kelting / Radio K.R.E., Elmshorn, 2021). Signal path:
+
+```
+USB → VM110N → optocouplers → buffer → ULN2803 → X1 → signal tower
+```
+
+The output driver is a **ULN2803**, rated **500 mA per channel switched to
+ground** (the OCC2904 manual quotes a more conservative 250 mA for its auxiliary
+channels on X3). Consequences:
+
+- **+12 V is common** to all lamps; the ULN pulls the selected channel to ground.
+  Polarity is therefore fixed — LED retrofits should be the "DC/AC" kind with an
+  onboard bridge rectifier, so orientation stops mattering.
+- **Incandescent bulbs are impractical here.** A 7 W / 12 V bulb draws ~583 mA,
+  which exceeds the driver; even 5 W (~417 mA) is marginal once several channels
+  are lit at the same time. Use LED retrofits (tens of mA).
+
+### Channel mapping
 
 > [!WARNING]
-> **Known hardware issue (2026-05-16):** The AMBER lamp on the production tower
-> at rbhapp01 has an intermittent connection. Software-side AMBER works (verified
-> via `POST /signal {"colour":"AMBER","mode":"on"}` and `GET /lamps`), but the
-> physical lamp sometimes fails to light. Suspected loose cable / cold solder
-> joint / unseated header on the K8055-OUT3 path. Until repaired, do not rely on
-> AMBER alone for visual alarm signalling — the alarm-button system
-> ([04-projects/alarm-button](../ki-os/04-projects/alarm-button/) in the KI-OS
-> vault) provides a redundant signal path.
+> **Three mappings exist for this hardware. Only the one below is wired.**
+> The OCC2904 manual specifies X1 as `1 red · 2 green · 3 yellow · 4 blue ·
+> 5 white`, and the original 2021 design sketch used `1 green · 2 red ·
+> 3 orange · 4 white · 5 blue`. **The tower was wired differently from both.**
+> Anyone following the manual or the sketch will swap colours.
+
+The mapping below is the one in `hardware.py` and the one that is physically
+wired. It is the authoritative one:
+
+| K8055 output | Bitmask | Colour |
+|---|---|---|
+| 1 | 1 | BLUE |
+| 2 | 2 | WHITE |
+| 3 | 4 | AMBER |
+| 4 | 8 | RED |
+| 5 | 16 | GREEN |
+
+### Lamps
+
+Bayonet socket **BA15d** in every module — verified by fit test across all five
+sockets, not by the module labels: the AMBER and BLUE modules are stamped
+"BA16d", which is not a socket standard that exists (no hits in the Schneider
+catalogues, not listed in IEC 60061, no supplier carries it). Treat that marking
+as a printing error.
+
+Tower modules are Schneider Electric / Telemecanique Harmony Ø 70, mixed across
+two series — which is why they lock differently:
+
+| Module | Series | Colour | Mounting |
+|---|---|---|---|
+| XVB C33 | XVB | green | clamping ring |
+| XVB C34 | XVB | red | clamping ring |
+| XVD C35 | XVD | orange | stacked |
+| XVD C36 | XVD | blue | stacked |
+| XVD C37 | XVD | clear | stacked |
+
+XVB modules each carry their own clamping ring. XVD modules are held by **one
+threaded rod running the full height** (Schneider part XVD C03…C08, discontinued;
+**M3 or M4** is the practical substitute). Lamp type currently fitted: 12 V
+automotive LED retrofits, ~Ø 15 mm socket, 40 mm overall.
+
+### When a single channel goes dark
+
+Check the **ULN2803 first**, not the lamp. Its manual states that in most failure
+cases a short damages the output driver. Input-side test: bridge pins 5 and 8 of
+the input optocoupler; the control signal then passes straight through.
 
 ## API reference
 
