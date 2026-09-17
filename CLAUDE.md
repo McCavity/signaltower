@@ -86,6 +86,14 @@ Uses `uv`. Edit `pyproject.toml`, then run `uv sync`.
 - Colour bitmask: BLUE=1, WHITE=2, AMBER=4, RED=8, GREEN=16
 - Must detach kernel HID driver before claiming interface
 
+⚠️ **The bitmask above is the wiring, and it contradicts both written sources.**
+The OCC2904 manual specifies X1 as `1 red · 2 green · 3 yellow · 4 blue · 5 white`;
+the original 2021 design sketch used `1 green · 2 red · 3 orange · 4 white · 5 blue`.
+Neither matches. The code is authoritative because it is what actually lights the
+right lamp — do not "correct" it against a document. See the wiring section in
+`README.md` for supply voltage (12 V DC), the ULN2803 driver stage and its current
+limits, and the lamp/module types.
+
 ## Thread safety
 
 All shared state lives in `state.py` behind a single `threading.Lock`. The watchdog thread and FastAPI request handlers both call `state.*` functions — never touch the underlying `_lamp_states` or `_last_seen` variables directly.
@@ -96,13 +104,15 @@ All shared state lives in `state.py` behind a single `threading.Lock`. The watch
 
 ## Organisation Context
 
-This repository is part of Henning Halfpap's personal GitHub collection, located at
-`/Users/hhalfpap/git/projects/own` on the development machine.
+This repository is one of several personal repos that sit side by side in a single
+parent directory on the development machine. That parent directory is itself a git
+repo and carries the cross-repo tooling. Paths below are relative to this repo, so
+they hold wherever the collection is checked out.
 
-- **Org index**: `/Users/hhalfpap/git/projects/own/org-index.json` — machine-readable
-  metadata for all repos (last commit, CLAUDE.md presence, file count, etc.)
-- **Org instructions**: `/Users/hhalfpap/git/projects/own/CLAUDE.md` — guidance for
-  cross-repo maintenance tasks (checking sync status, stale repos, etc.)
+- **Org index**: `../org-index.json` — machine-readable metadata for all repos
+  (last commit, CLAUDE.md presence, file count, etc.)
+- **Org instructions**: `../CLAUDE.md` — guidance for cross-repo maintenance
+  tasks (checking sync status, stale repos, etc.)
 
 For project-specific work, operate within this directory. For questions spanning
 multiple repos, consult the org index first.
