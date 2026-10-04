@@ -36,6 +36,10 @@ REASSERT_INTERVAL_S = 5.0
 # runs at 10 Hz and would otherwise flood the journal).
 ERROR_LOG_INTERVAL_S = 60.0
 
+# After a failed write, wait this long before the next attempt. Reconnecting
+# at 10 Hz would hammer the bus and may reset the board's outputs (flicker).
+RETRY_BACKOFF_S = 1.0
+
 
 def _blink_on(mode: str) -> bool:
     half = BLINK_HALF_PERIOD[mode]
@@ -55,6 +59,7 @@ class LoopContext:
     last_write: float | None = None     # monotonic time of last successful write
     last_error_log: float | None = None # monotonic time of last logged fault
     failing: bool = False
+    retry_after: float = 0.0            # no write attempt before this time
 
 
 def tick(ctx: LoopContext, now: float):
@@ -89,7 +94,7 @@ def tick(ctx: LoopContext, now: float):
     bitmask |= COLOURS[ctx.committed_zone]
 
     due = ctx.last_write is None or now - ctx.last_write >= REASSERT_INTERVAL_S
-    if bitmask != ctx.last_bitmask or due:
+    if (bitmask != ctx.last_bitmask or due) and now >= ctx.retry_after:
         try:
             hardware.device.set_outputs(bitmask)
             ctx.last_bitmask = bitmask
@@ -99,13 +104,15 @@ def tick(ctx: LoopContext, now: float):
                 log.info("K8055 write recovered")
                 ctx.failing = False
                 ctx.last_error_log = None
-        except hardware.K8055NotFoundError:
-            pass
+        except hardware.K8055NotFoundError as exc:
+            ctx.retry_after = now + RETRY_BACKOFF_S
+            _log_fault(ctx, now, "K8055 not found: %s", exc)
         except Exception as exc:
             # A single USB timeout killed this thread on 2026-10-02 and froze
             # the tower for 34 h while the API kept answering. Drop the handle
             # so the next tick reconnects and writes again.
             hardware.device.reset()
+            ctx.retry_after = now + RETRY_BACKOFF_S
             _log_fault(ctx, now, "K8055 write failed: %r", exc)
 
 

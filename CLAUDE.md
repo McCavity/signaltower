@@ -106,7 +106,7 @@ All shared state lives in `state.py` behind a single `threading.Lock`. The watch
 
 ## Hardware absence
 
-`hardware.K8055` connects lazily (on first `set_outputs` call). `K8055NotFoundError` is caught in `watchdog.py` and silently swallowed, so the app runs normally on a dev machine without a device attached — `/health` then reports 503, correctly.
+`hardware.K8055` connects lazily (on first `set_outputs` call). `K8055NotFoundError` is caught in `watchdog.py` and logged at most once a minute, so the app runs normally on a dev machine without a device attached — `/health` then reports 503, correctly.
 
 ## Watchdog resilience (since 2026-10-04)
 
@@ -115,7 +115,9 @@ lived on, the API reported the *intended* lamp states, and the physical tower st
 frozen for 34 hours; systemd saw nothing to restart. Hence:
 
 - `watchdog.step()` wraps every tick — no exception may end the thread.
-- Any write failure calls `hardware.device.reset()`; the next tick reconnects.
+- Any write failure calls `hardware.device.reset()` and backs off for
+  `RETRY_BACKOFF_S` (1 s) before reconnecting — not at 10 Hz. A missing board is
+  logged too, rate-limited like every fault.
 - The bitmask is rewritten every `REASSERT_INTERVAL_S` (5 s) even if unchanged.
 - Liveness is recorded in `state` (`record_loop_tick`, `record_write_ok`) and
   exposed as `GET /health` — monitor that, never just the unit.

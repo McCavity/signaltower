@@ -14,8 +14,8 @@ def test_usb_timeout_does_not_escape_and_next_tick_writes(monkeypatch):
     monkeypatch.setattr(hardware, "device", dev)
     ctx = watchdog.LoopContext()
 
-    watchdog.tick(ctx, now=100.0)   # schreibt, scheitert am Timeout
-    watchdog.tick(ctx, now=100.1)   # muss erneut schreiben
+    watchdog.tick(ctx, now=100.0)                                 # scheitert am Timeout
+    watchdog.tick(ctx, now=100.0 + watchdog.RETRY_BACKOFF_S)      # muss erneut schreiben
 
     assert len(dev.writes) == 1
     assert dev.resets == 1
@@ -45,7 +45,7 @@ def test_unexpected_error_in_tick_does_not_escape_step(monkeypatch):
 
 
 def test_write_failures_are_logged_rate_limited_and_recovery_is_logged(monkeypatch, caplog):
-    dev = FakeDevice(failures=[_timeout() for _ in range(20)])
+    dev = FakeDevice(failures=[_timeout() for _ in range(2)])   # je ein Versuch pro Block
     monkeypatch.setattr(hardware, "device", dev)
     ctx = watchdog.LoopContext()
     caplog.set_level("INFO", logger="signaltower.watchdog")
@@ -60,3 +60,23 @@ def test_write_failures_are_logged_rate_limited_and_recovery_is_logged(monkeypat
 
     watchdog.step(ctx, now=200.0)                            # Fehler aufgebraucht
     assert any("recovered" in r.getMessage() for r in caplog.records)
+
+
+def test_missing_board_is_logged(monkeypatch, caplog):
+    monkeypatch.setattr(hardware, "device", FakeDevice(failures=[hardware.K8055NotFoundError("weg")]))
+    caplog.set_level("INFO", logger="signaltower.watchdog")
+
+    watchdog.step(watchdog.LoopContext(), now=100.0)
+
+    assert any(r.levelname == "WARNING" for r in caplog.records)
+
+
+def test_failed_writes_back_off_instead_of_retrying_every_tick(monkeypatch):
+    dev = FakeDevice(failures=[_timeout() for _ in range(100)])
+    monkeypatch.setattr(hardware, "device", dev)
+    ctx = watchdog.LoopContext()
+
+    for i in range(10):                              # 1 s bei 10 Hz
+        watchdog.step(ctx, now=100.0 + i * 0.1)
+
+    assert dev.resets <= 2

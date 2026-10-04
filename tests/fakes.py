@@ -18,9 +18,6 @@ class FakeDevice:
         self.resets += 1
 
 
-def _timeout():
-    return usb.core.USBTimeoutError("Operation timed out", -7, 110)
-
 
 def usb_timeout():
     return usb.core.USBTimeoutError("Operation timed out", -7, 110)

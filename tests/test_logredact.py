@@ -1,9 +1,25 @@
 import logging
 import logging.config
 
+import pytest
+
 from signaltower.app import log_config
 
 FAKE_KEY = "not-a-real-key-fake"
+
+_CONFIGURED = ("signaltower", "uvicorn", "uvicorn.access", "uvicorn.error")
+
+
+@pytest.fixture(autouse=True)
+def restore_logging():
+    """dictConfig bindet Handler an den capsys-Strom; danach zurückbauen,
+    sonst schreiben spätere Tests in einen geschlossenen Strom."""
+    yield
+    for name in _CONFIGURED:
+        logger = logging.getLogger(name)
+        logger.handlers.clear()
+        logger.propagate = True
+        logger.setLevel(logging.NOTSET)
 
 
 def test_access_log_masks_the_api_key(capsys):

@@ -208,7 +208,8 @@ The watchdog loops continuously (0.1 s tick) and overrides the GREEN and RED out
 BLUE, WHITE, and AMBER outputs are not touched by the watchdog — they are controlled exclusively via `POST /signal`. A 0.5 s debounce smooths brief threshold crossings to prevent visible flicker.
 
 **Resilience.** No error ends the watchdog thread. A failed USB write drops the
-device handle; the next tick reconnects and writes again. The current bitmask is
+device handle; one second later the watchdog reconnects and writes again (a missing
+board is retried at the same pace and logged). The current bitmask is
 rewritten every 5 s even when nothing changed, so a write that got lost heals by
 itself. Faults are logged once, then at most once a minute while they persist, and
 recovery is logged as well.
