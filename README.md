@@ -177,6 +177,25 @@ Open in a browser:
 http://<pi-address>:5000/ui?key=<your-key>
 ```
 
+### `GET /health`
+
+Unauthenticated liveness check for monitoring. It reveals no secrets.
+
+```sh
+curl -s http://<pi-address>:5000/health
+# {"status":"ok","loop_age_s":0.0,"write_age_s":2.3}
+```
+
+Returns **200** only if the watchdog loop ticked within the last 3 s **and** the tower
+was written successfully within the last 15 s; otherwise **503** with
+`"status":"fail"`. A running process alone proves nothing: on 2026-10-02 a single USB
+timeout ended the watchdog thread, the tower froze for 34 hours, and the API kept
+answering `200 OK` the whole time. Point your monitoring at this endpoint, not at the
+systemd unit.
+
+On a development machine without a K8055, `/health` always returns 503 — there is
+nothing to write to.
+
 ### Watchdog behaviour
 
 The watchdog loops continuously (0.1 s tick) and overrides the GREEN and RED outputs:
@@ -188,23 +207,31 @@ The watchdog loops continuously (0.1 s tick) and overrides the GREEN and RED out
 
 BLUE, WHITE, and AMBER outputs are not touched by the watchdog — they are controlled exclusively via `POST /signal`. A 0.5 s debounce smooths brief threshold crossings to prevent visible flicker.
 
+**Resilience.** No error ends the watchdog thread. A failed USB write drops the
+device handle; the next tick reconnects and writes again. The current bitmask is
+rewritten every 5 s even when nothing changed, so a write that got lost heals by
+itself. Faults are logged once, then at most once a minute while they persist, and
+recovery is logged as well.
+
 ## Authentication
 
-All endpoints require authentication. The key is generated during installation and stored in `/etc/signaltower/env`. To retrieve it:
+All endpoints except `/health` require authentication. The key is generated during
+installation and stored in `/etc/signaltower/env` (readable by root only).
+
+**Never print the key** — not with `cat`, not with `echo`, not in a log. Keep it in a
+password manager and hand it to clients from there (paste it, or inject it into the
+environment of the one process that needs it).
+
+Pass the key as a header — preferred:
 
 ```sh
-sudo cat /etc/signaltower/env
+curl -H "X-API-Key: $SIGNALTOWER_API_KEY" http://<pi-address>:5000/heartbeat
 ```
 
-Pass the key either as a header or as a query parameter:
-
-```sh
-# header
-curl -H "X-API-Key: <your-key>" http://<pi-address>:5000/heartbeat
-
-# query parameter (useful for browser URLs and tools without header support)
-curl http://<pi-address>:5000/heartbeat?key=<your-key>
-```
+The query parameter `?key=…` is still accepted for tools without header support and
+for the browser UI. The service masks it in its own access log (`key=***`), but a
+URL can still end up in browser history or proxy logs — prefer the header wherever
+the client allows it.
 
 The key file is preserved across upgrades. To rotate the key, replace it in `/etc/signaltower/env` and restart the service.
 
