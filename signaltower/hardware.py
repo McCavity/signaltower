@@ -27,6 +27,15 @@ class K8055:
         dev.set_configuration()
         self._dev = dev
 
+    def reset(self):
+        """Drop the USB handle; the next ``set_outputs`` reconnects."""
+        if self._dev is not None:
+            try:
+                usb.util.dispose_resources(self._dev)
+            except Exception:
+                pass
+        self._dev = None
+
     def set_outputs(self, bitmask: int):
         if self._dev is None:
             self._connect()

@@ -1,6 +1,8 @@
+import copy
 import json
 import os
 import secrets
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import Literal
@@ -95,7 +97,7 @@ button.set-all:disabled{opacity:.5;cursor:wait}
     <rect x="26" y="304" width="48" height="14" rx="3" fill="#1e1e1e"/>
     <rect x="14" y="316" width="72" height="20" rx="5" fill="#252525"/>
   </svg>
-  <div class="caption">K8055 · rbhapp01</div>
+  <div class="caption">K8055</div>
   </div>
 
   <div style="flex:1">
@@ -273,6 +275,17 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(status_code=422, content=_serializable({"detail": exc.errors()}))
 
 
+@app.get("/health")
+def health():
+    """Unauthenticated liveness check for monitoring — reveals no secrets.
+
+    503 unless the watchdog loop is ticking *and* the tower was written
+    recently. A live process alone proves nothing (outage 2026-10-02).
+    """
+    result = state.health(time.monotonic())
+    return JSONResponse(status_code=200 if result["status"] == "ok" else 503, content=result)
+
+
 @app.get("/heartbeat", dependencies=[Depends(_require_api_key)])
 def heartbeat():
     state.set_last_seen()
@@ -318,5 +331,15 @@ def ui(
     return HTMLResponse(_UI_HTML.replace("__API_KEY__", api_key))
 
 
+def log_config() -> dict:
+    """uvicorn's default logging, plus key redaction and our own loggers."""
+    config = copy.deepcopy(uvicorn.config.LOGGING_CONFIG)
+    config.setdefault("filters", {})["redact_key"] = {"()": "signaltower.logredact.RedactKeyFilter"}
+    for handler in config["handlers"].values():
+        handler.setdefault("filters", []).append("redact_key")
+    config["loggers"]["signaltower"] = {"handlers": ["default"], "level": "INFO", "propagate": False}
+    return config
+
+
 def main():
-    uvicorn.run("signaltower.app:app", host="0.0.0.0", port=5000)
+    uvicorn.run("signaltower.app:app", host="0.0.0.0", port=5000, log_config=log_config())

@@ -30,8 +30,9 @@ uv run signaltower
 
 ## Deployment
 
-Runs on `rbhapp01` (172.16.47.242), repo at `~/git/projects/own/signaltower` on
-the same path on the Pi. Update sequence (from Pi shell or via SSH):
+Runs on a Raspberry Pi in the home lab (host name and address: see the private
+asset DB, not this public repo). The repo lives at `~/git/projects/own/signaltower`
+on the Pi as well. Update sequence (from Pi shell or via SSH):
 
 ```sh
 cd ~/git/projects/own/signaltower
@@ -44,30 +45,35 @@ virtualenv at `/opt/signaltower` and restarts the `signaltower.service`. The API
 listens on `:5000`; the API key is in `/etc/signaltower/env` (preserved across
 upgrades).
 
-Health check after deploy:
+Health check after deploy — no key needed:
 
 ```sh
-curl http://172.16.47.242:5000/lamps?key=<api-key>
+curl -s http://<host>:5000/health
 ```
 
-Expect a JSON with all 5 lamp states.
+Expect `"status":"ok"` with HTTP 200. A 503 means the watchdog loop is not ticking
+or the tower is not being written; see `README.md`.
 
 ## Local environment
 
+⚠️ **Never print the API key** — no `cat` of the env file, no `echo`, no full log
+lines that may contain `?key=`. The session transcript is a publication channel too.
+The key's source of truth is the password manager; clients receive it from there.
+
 API key for outgoing tests from this Mac lives in a gitignored `.env` next to
-this CLAUDE.md, mirrored to 1Password as a Secure Note. Template:
+this CLAUDE.md. Template:
 
 ```sh
 cp .env.example .env
 chmod 600 .env
-# Paste the production key (sudo cat /etc/signaltower/env on rbhapp01)
+# paste the key from the password manager — do not read it off the Pi
 ```
 
-Loading the key into a shell session:
+Loading the key into a shell session, and checking it without showing it:
 
 ```sh
 set -a; source .env; set +a
-echo $SIGNALTOWER_API_KEY   # should be non-empty
+test -n "$SIGNALTOWER_API_KEY" && echo "key loaded"
 ```
 
 The development server also reads `SIGNALTOWER_API_KEY` from the environment, so
@@ -100,7 +106,24 @@ All shared state lives in `state.py` behind a single `threading.Lock`. The watch
 
 ## Hardware absence
 
-`hardware.K8055` connects lazily (on first `set_outputs` call). `K8055NotFoundError` is caught in both `app.py` and `watchdog.py` and silently swallowed, so the app runs normally on a dev machine without a device attached.
+`hardware.K8055` connects lazily (on first `set_outputs` call). `K8055NotFoundError` is caught in `watchdog.py` and logged at most once a minute, so the app runs normally on a dev machine without a device attached — `/health` then reports 503, correctly.
+
+## Watchdog resilience (since 2026-10-04)
+
+On 2026-10-02 one `usb.core.USBTimeoutError` ended the watchdog thread. The process
+lived on, the API reported the *intended* lamp states, and the physical tower stayed
+frozen for 34 hours; systemd saw nothing to restart. Hence:
+
+- `watchdog.step()` wraps every tick — no exception may end the thread.
+- Any write failure calls `hardware.device.reset()` and backs off for
+  `RETRY_BACKOFF_S` (1 s) before reconnecting — not at 10 Hz. A missing board is
+  logged too, rate-limited like every fault.
+- The bitmask is rewritten every `REASSERT_INTERVAL_S` (5 s) even if unchanged.
+- Liveness is recorded in `state` (`record_loop_tick`, `record_write_ok`) and
+  exposed as `GET /health` — monitor that, never just the unit.
+- uvicorn's access log runs through `logredact.RedactKeyFilter` (`key=***`).
+
+Tests: `uv run pytest` — `tests/fakes.py` simulates the K8055, including timeouts.
 
 ## Organisation Context
 
